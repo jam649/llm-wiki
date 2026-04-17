@@ -10,6 +10,8 @@ Follow the standard prelude in `skills/wiki-manager/references/command-prelude.m
 
 Read the ingestion protocol at `skills/wiki-manager/references/ingestion.md` and the structure spec at `skills/wiki-manager/references/wiki-structure.md`. Then ingest source material.
 
+**Before you start**, internalize the Fidelity Requirements at the top of `references/ingestion.md` — verbatim body, unknown > guessed, summary provenance, tag grounding, preserved provenance markers, declared extraction method. Every ingestion must end with the Verification Pass. Contaminated raw sources are the root cause of every downstream hallucination in this wiki, so treat fidelity as non-negotiable.
+
 ### `--new-topic` branch
 
 When `--new-topic` is set, override the standard resolution:
@@ -133,15 +135,22 @@ When `--inbox` is set and no `--wiki` was provided, classify items as a batch:
 2. Write source file to `raw/{type}/` with proper frontmatter:
    ```
    ---
-   title: "Title"
+   title: "Title"                  # verbatim from source, else 'unknown' — never infer
    source: "URL or filepath or MANUAL"
    type: articles|papers|repos|notes|data
    ingested: YYYY-MM-DD
-   tags: [auto-generated relevant tags]
-   summary: "2-3 sentence summary"
+   extraction: webfetch|grok-mcp|fxtwitter|vxtwitter|file-read|manual-paste|pdf-text|pdf-ocr
+   author: "Author Name"           # from byline only, else 'unknown' — never infer
+   date_published: YYYY-MM-DD      # as printed in source, else 'unknown' — never infer
+   tags: [only concepts explicitly discussed in body]
+   summary: "2-3 sentences — every sentence must be traceable to a passage in the body"
+   verification: pending            # flipped to 'passed' after Verification Pass
    ---
    ```
-3. Update `raw/{type}/_index.md`, `raw/_index.md`, and master `_index.md` (best-effort — if skipped or interrupted, the next read will rebuild from file frontmatter. See `references/indexing.md` Derived Index Protocol.)
-4. Append to `log.md`: `## [YYYY-MM-DD] ingest | Title (raw/type/slug.md)`
-7. Report: what was ingested, where saved, detected tags
+   The body that follows the frontmatter must be the source's own text, verbatim. No paraphrase, no summarization, no generated "cleanup". See `references/ingestion.md` § "Fidelity Requirements".
+3. **Run the Verification Pass** from `references/ingestion.md` § "Verification Pass". This is a blocking step — do NOT update any index until it passes. If it fails, revise or delete the file and report to the user.
+4. Flip `verification: pending` → `verification: passed` in the frontmatter.
+5. Update `raw/{type}/_index.md`, `raw/_index.md`, and master `_index.md` (best-effort — if skipped or interrupted, the next read will rebuild from file frontmatter. See `references/indexing.md` Derived Index Protocol.)
+6. Append to `log.md`: `## [YYYY-MM-DD] ingest | Title (raw/type/slug.md) — verified`
+7. Report: what was ingested, where saved, detected tags, extraction method, and any fields set to `unknown`.
 8. Check uncompiled source count. If 5+, suggest `/wiki:compile`

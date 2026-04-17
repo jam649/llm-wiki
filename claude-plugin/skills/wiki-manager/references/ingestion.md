@@ -4,6 +4,22 @@
 
 Ingestion converts external material into a standardized raw source file in the wiki's `raw/` directory. Sources are immutable after ingestion.
 
+## Fidelity Requirements (CRITICAL)
+
+These rules apply to ALL ingestion modes. Violation contaminates the raw layer with hallucinations, which silently corrupts every downstream compile, query, and citation.
+
+1. **Verbatim body.** The body of every raw source file must be the source material's own text. No paraphrase, no "summarized for brevity", no filling gaps from general knowledge. If an extraction tool (WebFetch, PDF reader, API proxy) returns obviously truncated, summarized, or model-generated text, STOP and report the truncation — do not silently accept a lossy extraction.
+
+2. **Unknown > guessed.** If a metadata field (author, date, title) is not explicit in the source, write `unknown`. Never infer from the URL slug, the domain, or general knowledge about the site or topic. A wrong date is worse than an unknown date because downstream compile will cite it confidently.
+
+3. **Summary provenance.** Every sentence of the `summary:` frontmatter field must be directly traceable to a passage in the body. If a summary claim can't be cited to the body, remove it.
+
+4. **Tag grounding.** Tags must be derivable from text that appears in the body. Do not add topic tags based on what the source "is probably about" — only for concepts explicitly discussed. When in doubt, fewer tags.
+
+5. **Preserve provenance markers.** Keep every URL, timestamp, quote attribution, figure caption, and citation that appears in the source. These are what downstream compile uses to verify claims.
+
+6. **Declare extraction method.** Add `extraction:` to frontmatter with one of: `webfetch`, `grok-mcp`, `fxtwitter`, `vxtwitter`, `file-read`, `manual-paste`, `pdf-text`, `pdf-ocr`. Downstream compile uses this to decide how much to trust the body.
+
 ## Source Types
 
 | Type | Directory | Auto-detect signals |
@@ -38,11 +54,11 @@ Ingestion converts external material into a standardized raw source file in the 
 
 2. **General URLs**: Use WebFetch to retrieve content. Prompt:
 
-   > "Extract the complete article content from this page. Return: title, author(s) if listed, date published if listed, and the full article text preserving all factual claims, data points, code examples, and technical details. Format as clean markdown."
+   > "Extract the article from this page VERBATIM. Return the complete article text exactly as it appears in the source — do NOT summarize, paraphrase, or 'clean up' the content. Preserve every factual claim, number, quote, attribution, and citation. Fields: title (as printed), author(s) (from byline only, else 'unknown' — never infer), date published (as printed, else 'unknown' — never infer), full article body text. If the page is gated, paywalled, rate-limited, or returns only partial content, say so EXPLICITLY at the top of the response. Format as clean markdown, preserving headings, lists, block quotes, and inline links."
 
 3. **GitHub repo URLs**: Use WebFetch with prompt:
 
-   > "Extract from this GitHub repository: name, description, key technologies, main purpose, README content. Format as markdown."
+   > "Extract from this GitHub repository VERBATIM: repo name, description (as shown on the repo page, not inferred), primary language(s) from the language bar (not guessed from the name), stated purpose (README intro only), and the full README content. If any field is absent, return 'unknown' — do not infer from the repo name or URL. Format as clean markdown."
 
 4. **Failure handling**: If WebFetch fails (auth wall, paywall), report the failure. Suggest: paste content manually via `/wiki:ingest "text" --title "Title"`.
 
@@ -85,9 +101,27 @@ The `inbox/` directory is a drop zone. Users dump files there via Finder, `cp`, 
 4. Example: "Attention Is All You Need" → `2026-04-04-attention-is-all-you-need.md`
 5. If a file with that slug already exists, append `-2`, `-3`, etc.
 
+## Verification Pass (REQUIRED before index updates)
+
+After writing the raw source file but BEFORE any index updates, perform this pass. It is the last line of defense against hallucination contamination.
+
+1. **Re-read the file you just wrote** — don't work from memory.
+2. **Check each frontmatter field against the body**:
+   - `title` — matches the source's own printed title, or a clearly-derived variant?
+   - `author` / `date_published` — present as byline/dateline in the body? If not, the field must be `unknown`.
+   - Each sentence of `summary` — can you quote the body passage that supports it?
+   - Each `tag` — can you point to body text that explicitly discusses that concept?
+3. **Scan the body for fabrication signals**:
+   - Sentences that sound more confident or polished than the rest of the source
+   - Specific numbers, dates, or names that appear only once and aren't sourced elsewhere in the body
+   - Unattributed opinions, interpretations, or "takeaway" paragraphs not present in the original
+   - Abrupt topic jumps that suggest the extraction tool stitched unrelated content
+4. **If any check fails**: revise the file — remove ungrounded claims from `summary`/`tags`, change unverifiable metadata to `unknown`, or re-extract the body if extraction was lossy. If the source cannot be verified (e.g., extraction returned boilerplate or was clearly summarized), DELETE the file and report to the user — do NOT proceed to index updates.
+5. **On pass**: set `verification: passed` in the frontmatter and append to `log.md`: `## [YYYY-MM-DD] verify | <slug> — OK`. Note any fields set to `unknown` in the log.
+
 ## Post-Ingestion Index Updates
 
-After writing each source file, update indexes in order:
+Only run after the Verification Pass has passed. Update indexes in order:
 
 1. `raw/{type}/_index.md` — add row to Contents table
 2. `raw/_index.md` — add row to Contents table
