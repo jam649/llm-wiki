@@ -84,9 +84,9 @@ Present all questions at once. Wait for answers before proceeding.
 For each knowledge gap identified in Stage 1, run a targeted web search to fill it.
 
 1. For each gap, run 1-2 WebSearch queries
-2. For promising results, use WebFetch to extract relevant content
-3. Synthesize findings into a brief gap-fill (3-5 bullet points per gap)
-4. If a gap is substantial enough, ingest the source into the wiki's `raw/` for future use
+2. For promising results, use WebFetch (with the verbatim-extraction prompt from `references/ingestion.md`) to extract relevant content
+3. Synthesize findings into a brief gap-fill (3-5 bullet points per gap) — for plan-stage reasoning only; do NOT write the synthesis to `raw/`
+4. If a gap is substantial enough to save for future use, ingest the source by following the full `/wiki:ingest` protocol — same Fidelity Requirements and Verification Pass. The raw body is the verbatim WebFetch output, NOT your gap-fill synthesis from step 3. See `references/ingestion.md`.
 
 Do NOT launch full research agents — this is lightweight, targeted filling. If gaps are large, suggest `/wiki:research` as a follow-up instead.
 

@@ -19,13 +19,25 @@ You are a research agent. Your task:
 **Current wiki state**: {Brief summary from Phase 1 — what's already covered}
 **Constraints**:
 - Run 2-3 WebSearch queries (vary terms)
-- WebFetch full content for promising results
+- WebFetch full content for promising results, using a VERBATIM extraction prompt (request the source text as-printed; no summarization, no paraphrase, no "cleanup")
 - Skip: paywalled, SEO spam, thin, duplicate
 - Target 3-5 high-quality sources
 
+**Fidelity rules (NON-NEGOTIABLE — Phase 3 writes these to `raw/`)**:
+- For each source, preserve the COMPLETE verbatim WebFetch body. Do NOT return only "key findings" or a summary — the verbatim body is what Phase 3 writes to `raw/`, and a summary-only body is a hallucination vector.
+- For metadata (title, author, date published), report ONLY what is explicitly printed in the source. Use 'unknown' if not present. Never infer from URL slug, domain, or general knowledge.
+- If WebFetch returns truncated, paywalled, login-walled, or summarized content, say so EXPLICITLY in the source entry. Do not backfill missing text from memory or other sources.
+- Your own interpretation, synthesis, or "this means X" commentary goes in the key-findings bullets, NOT in the body text.
+
 **Return format**: For each source:
-- Title, URL, quality score (1-5)
-- Key findings (3-5 bullets)
+- Title (as printed, else 'unknown')
+- URL
+- Author (byline only, else 'unknown')
+- Date published (as printed, else 'unknown')
+- Extraction notes (verbatim / truncated / partial / paywalled / summarized — be honest)
+- Verbatim body (the full text WebFetch returned — this becomes the raw file body)
+- Quality score (1-5)
+- Key findings (3-5 bullets) — your interpretation, used for ranking only
 - Why ingest (1 sentence)
 
 **Quality scoring**:
@@ -51,12 +63,16 @@ You are investigating: "{thesis}"
 Key variables: {variables}
 Your lens: {Agent Focus} — {Thesis Lens description}
 
+**Same Fidelity rules apply** as the Topic template: verbatim WebFetch bodies, 'unknown' for any metadata not explicit in source, extraction-notes declared honestly. The thesis lens (supports/opposes/nuances) is an interpretive TAG on the source — it does not license paraphrasing or editorializing the body text.
+
 For each source, evaluate:
 - Relevance: direct | indirect | tangential (SKIP tangential)
 - Evidence strength: meta-analysis > RCT > cohort > case > opinion > anecdotal
 - Direction: supports | opposes | nuances
-- Key finding: 1-2 sentences
+- Key finding: 1-2 sentences (interpretation, NOT part of body)
 - Quality: 1-5
+
+Return format adds to the Topic template return format (title, url, author, date, extraction notes, verbatim body, quality, key findings, why ingest) the fields: relevance, evidence strength, direction.
 
 Return ranked by (relevance × evidence strength), strongest first.
 ```
@@ -64,7 +80,8 @@ Return ranked by (relevance × evidence strength), strongest first.
 ### Retardmax Variants
 
 - All templates: increase to 4-5 searches
-- Lower quality threshold: accept 2+ (not 3+)
+- Lower **credibility** threshold: accept 2+ (not 3+)
+- **Fidelity thresholds do NOT bend in retardmax mode** — verbatim bodies, `unknown`-over-guessed metadata, and the Verification Pass still apply to every source written to `raw/`. Retardmax accepts lower-quality sources, not lower-fidelity extractions.
 - Add: "Follow interesting citations and references from pages you find"
 - Rabbit Hole agents: "Start with '{topic}', follow the most compelling result, then search for what THAT references. Go deep."
 

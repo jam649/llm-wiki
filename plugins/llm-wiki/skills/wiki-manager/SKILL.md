@@ -49,6 +49,8 @@ See [references/wiki-structure.md](references/wiki-structure.md) for the complet
 
 2. **Raw is immutable.** Once ingested into `raw/`, sources are never modified. They are a record of what was ingested and when. All synthesis happens in `wiki/`.
 
+   **Corollary: raw fidelity is non-negotiable.** Any command that causes a document to land in `raw/` — `/wiki:ingest`, `/wiki:research` Phase 3, `/wiki:plan` Stage 3 gap-fill, inbox processing, or agent-driven writes — MUST follow the Fidelity Requirements and Verification Pass in [references/ingestion.md](references/ingestion.md). A contaminated raw layer poisons every downstream compile, query, and citation silently — recovery is only possible via `/wiki:retract`, which is expensive. Prevent contamination at ingest time, always.
+
 3. **Articles are synthesized, not copied.** A wiki article draws from multiple sources, contextualizes, and connects to other concepts. Think textbook, not clipboard.
 
 4. **Dual-linking for Obsidian + Codex.** Cross-references use both `[[wikilink]]` (for Obsidian graph view) and standard markdown `[text](path)` (for Codex navigation) on the same line: `[[slug|Name]] ([Name](../category/slug.md))`. Bidirectional when it makes sense.

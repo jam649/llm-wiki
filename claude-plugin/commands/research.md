@@ -443,13 +443,22 @@ You are a research agent. Your task:
 **Current wiki state**: The wiki already covers: {brief summary from Phase 1}. Search for what's NOT covered.
 **Constraints**:
 - Run 2-3 WebSearch queries (vary terms, don't repeat)
-- For each promising result, use WebFetch to extract full content
+- For each promising result, use WebFetch with a VERBATIM extraction prompt (request the source text as-printed; no summarization, paraphrase, or "cleanup")
 - Skip: paywalled, SEO spam, thin, duplicate
 - Target 3-5 high-quality sources
 
+**Fidelity rules (NON-NEGOTIABLE — Phase 3 writes these to `raw/`)**:
+- Preserve the COMPLETE verbatim WebFetch body per source; do NOT return only a summary. Phase 3 writes this verbatim body to `raw/`.
+- For metadata (title, author, date), report ONLY what is explicitly printed in the source. Use 'unknown' otherwise. Never infer from URL, domain, or general knowledge.
+- If WebFetch returns truncated, paywalled, or summarized content, say so explicitly. Do not backfill from memory.
+- Your interpretation goes in `key_findings`, never in the body text.
+
 **Return format**: For each source found:
-- Title, URL, quality score (1-5)
-- Key findings (3-5 bullet points)
+- Title (as printed, else 'unknown'), URL, author (byline only, else 'unknown'), date (as printed, else 'unknown')
+- Extraction notes (verbatim / truncated / partial / paywalled / summarized)
+- Verbatim body (full WebFetch text — becomes the raw file body)
+- Quality score (1-5)
+- Key findings (3-5 bullets — interpretation, used for ranking only)
 - Why it's worth ingesting (1 sentence)
 
 **Quality scoring guide**:
@@ -504,12 +513,19 @@ In **retardmax mode**: lower the rejection threshold (accept Medium and above wi
 
 #### Phase 3: Ingest
 
+Every source written to `raw/` in this phase MUST follow the full ingestion protocol at `references/ingestion.md` — same Fidelity Requirements and Verification Pass as `/wiki:ingest`. Multi-agent research is the highest-risk ingestion surface (parallel agents, web content, interpretive agent summaries), so these rules are especially important here.
+
 For each high-quality source (up to --sources count, ranked by quality score):
 
-1. Write to `raw/{type}/YYYY-MM-DD-slug.md` with proper frontmatter (title, source URL, type, tags, summary)
+1. Obtain the **verbatim WebFetch body** the agent retrieved — NOT the agent's "key findings" summary, NOT the agent's own synthesis. If the agent returned only a summary, re-run WebFetch with the verbatim-extraction prompt from `references/ingestion.md` before writing. A summary-only body is a hallucination vector and must never land in `raw/`.
 2. Auto-detect type: academic → papers, news → articles, code → repos, guides → articles, data → data
-3. Update `raw/{type}/_index.md` and `raw/_index.md`
-4. Update master `_index.md` source count
+3. Write to `raw/{type}/YYYY-MM-DD-slug.md` following the full frontmatter and body rules in `references/ingestion.md` § "Fidelity Requirements" — verbatim body, `unknown` for any field not explicit in source, `extraction: webfetch` (or the actual method used), `verification: pending`.
+4. **Run the Verification Pass** per source (`references/ingestion.md` § "Verification Pass"). If a source fails verification, delete it and list it in the Phase 5 "Sources skipped" report with reason `fidelity-fail` — do NOT silently accept.
+5. Flip `verification: passed` in frontmatter, then update `raw/{type}/_index.md`, `raw/_index.md`, and master `_index.md`.
+
+**Retardmax note**: Retardmax lowers the *credibility* threshold (accept Medium and above). It does NOT lower the *fidelity* threshold. Verbatim bodies and the Verification Pass still apply to every source.
+
+**Plan mode note**: Each path-agent is responsible for running the Verification Pass on its own raw writes. Path agents that skip verification are treated as failed paths.
 
 #### Phase 4: Compile
 
