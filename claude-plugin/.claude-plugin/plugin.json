@@ -3,7 +3,7 @@
   "description": "LLM-compiled knowledge base. Natural language routing, session resume, concurrent-safe derived indexes, topic-isolated wikis, parallel multi-agent research, thesis-driven investigation, repo assessment, Obsidian dual-linking, retardmax mode, and --min-time sustained research.",
   "version": "0.3.3-fidelity",
   "author": {
-    "name": "nvk"
+    "name": "jam649"
   },
   "license": "MIT",
   "keywords": [
